@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SV2 — Progress Claim Status Report</title>
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 1550px; margin: 20px auto; padding: 20px; background-color: #f0f2f5; }
+.report-container { background-color: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+.project-title { color: #2c3e50; font-size: 1.8em; margin: 0; text-transform: uppercase; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px 30px; margin: 25px 0 10px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; font-size: 0.9em; }
+.meta-grid b { color: #2c3e50; }
+.kpi-row { display: flex; gap: 15px; flex-wrap: wrap; margin: 25px 0 10px 0; }
+.kpi { flex: 1 1 200px; background: #f8f9fa; border: 1px solid #dee2e6; border-left: 5px solid #3498db; border-radius: 8px; padding: 15px 20px; }
+.kpi .k-label { font-size: 0.78em; color: #7f8c8d; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi .k-value { font-size: 1.35em; font-weight: bold; color: #2c3e50; }
+.kpi.green { border-left-color: #27ae60; } .kpi.green .k-value { color: #2e7d32; }
+.kpi.red { border-left-color: #c0392b; } .kpi.red .k-value { color: #c0392b; }
+.kpi.amber { border-left-color: #f39c12; } .kpi.amber .k-value { color: #b9770e; }
+h1 { color: #2c3e50; text-align: center; margin-bottom: 40px; font-size: 2.2em; }
+h2 { color: #34495e; border-left: 5px solid #3498db; padding-left: 15px; margin-top: 40px; }
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.8em; }
+th { background-color: #2c3e50; color: white; text-align: center; padding: 10px; font-weight: 600; }
+td { padding: 10px; text-align: right; border: 1px solid #e0e0e0; }
+td:first-child { text-align: center; font-weight: bold; background-color: #f8f9fa; }
+tr.total-row td { background-color: #ecf0f1 !important; font-weight: bold; font-size: 1.05em; border-top: 2px solid #2c3e50; }
+.date-col { text-align: center; }
+.variance-neg { color: #d32f2f; font-weight: bold; }
+.status-received { color: #2e7d32; font-weight: bold; text-align: center; }
+.status-not-due { color: #f39c12; font-weight: bold; text-align: center; }
+.status-due { color: #c0392b; font-weight: bold; text-align: center; }
+.received-col { background-color: #e8f5e9; font-weight: bold; }
+.cert-aft-rent-col { background-color: #f1f8ff; font-weight: bold; color: #0366d6; }
+.invoice-col { background-color: #fffde7; text-align: center; font-family: monospace; }
+.chart-box { margin: 20px 0 40px 0; padding: 25px; background: #f8f9fa; border-radius: 8px; border: 1px solid #dee2e6; }
+.chart-title { font-weight: bold; color: #2c3e50; margin-bottom: 18px; }
+.chart-row { display: flex; align-items: center; margin-bottom: 25px; }
+.chart-label { width: 140px; font-weight: bold; font-size: 0.9em; }
+.bar-container { flex-grow: 1; display: flex; flex-direction: column; gap: 4px; }
+.bar { height: 20px; border-radius: 4px; display: flex; align-items: center; padding: 0 12px; color: white; font-size: 0.75em; font-weight: bold; min-width: 10px; white-space: nowrap; }
+.bar-none { height: 20px; display: flex; align-items: center; font-size: 0.75em; font-style: italic; color: #c0392b; }
+.bar-pc       { background: linear-gradient(90deg, #3498db, #2980b9); }
+.bar-vc       { background: linear-gradient(90deg, #2c3e50, #34495e); }
+.bar-cert     { background: linear-gradient(90deg, #0366d6, #0056b3); }
+.bar-received { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+.graph-svg { width: 100%; height: 450px; background: #fff; border: 1px solid #eee; margin-top: 10px; }
+.axis { stroke: #95a5a6; stroke-width: 2; }
+.grid-line { stroke: #f0f0f0; stroke-width: 1; }
+.axis-label { font-size: 11px; fill: #7f8c8d; }
+.line-forecast { fill: none; stroke: #e67e22; stroke-width: 3; stroke-linecap: round; }
+.line-actual-vc { fill: none; stroke: #2c3e50; stroke-width: 3; stroke-dasharray: 5,5; }
+.data-point-vc { fill: #2c3e50; }
+.legend { display: flex; justify-content: center; gap: 20px; margin-top: 15px; font-size: 0.85em; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 8px; }
+.legend-dot { width: 14px; height: 14px; border-radius: 3px; }
+.legend-line { width: 30px; height: 3px; }
+.footer { margin-top: 50px; text-align: center; font-size: 0.85em; color: #95a5a6; border-top: 1px solid #eee; padding-top: 20px; }
+.footer p { margin: 4px 0; }
+.tab-nav { display: flex; gap: 6px; margin: 28px 0 0 0; border-bottom: 2px solid #dfe4e8; flex-wrap: wrap; }
+.tab-btn { font-family: inherit; font-size: 0.88em; font-weight: 600; color: #7f8c8d; background: transparent; border: none; border-bottom: 3px solid transparent; padding: 12px 20px; cursor: pointer; margin-bottom: -2px; transition: all .15s ease; }
+.tab-btn:hover { color: #2c3e50; }
+.tab-btn.active { color: #2c3e50; border-bottom-color: #3498db; }
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+.bc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; margin: 25px 0 5px 0; padding: 16px 20px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px; }
+.bc-group { display: flex; align-items: center; gap: 10px; }
+.bc-lbl { font-size: 0.78em; text-transform: uppercase; letter-spacing: .5px; color: #7f8c8d; font-weight: 600; }
+.bc-pcs { display: flex; gap: 4px; }
+.bc-pc-btn { font-family: inherit; font-size: 0.8em; font-weight: 600; padding: 7px 13px; border: 1px solid #d5dbdf; background: #fff; color: #2c3e50; border-radius: 5px; cursor: pointer; }
+.bc-pc-btn:hover { border-color: #3498db; }
+.bc-pc-btn.active { background: #2c3e50; color: #fff; border-color: #2c3e50; }
+.bc-seg { display: inline-flex; border: 1px solid #d5dbdf; border-radius: 5px; overflow: hidden; }
+.bc-seg-btn { font-family: inherit; font-size: 0.8em; font-weight: 600; padding: 7px 14px; border: none; background: #fff; color: #7f8c8d; cursor: pointer; }
+.bc-seg-btn.active { background: #3498db; color: #fff; }
+.bc-check { font-size: 0.8em; color: #555; display: flex; align-items: center; gap: 7px; cursor: pointer; margin-left: auto; }
+#bcTable td { font-size: 1em; }
+#bcTable td.bc-desc { text-align: left; }
+#bcTable tr.bc-bill td { background: #fff; }
+#bcTable tr.bc-bill.nil td { color: #b6bfc6; }
+#bcTable tr.bc-bill.open td { background: #eef5fb; }
+#bcTable tr.bc-bill.clickable { cursor: pointer; }
+#bcTable tr.bc-bill.clickable:hover td { background: #eef5fb; }
+#bcTable tr.bc-elem td { background: #f8f9fa; font-size: 0.94em; color: #4a5560; border-top: none; }
+#bcTable tr.bc-elem td.bc-desc { padding-left: 34px; font-style: italic; }
+#bcTable tr.bc-elem td:first-child { background: #f8f9fa; }
+#bcTable tr.bc-mos td { background: #fffdf3; }
+#bcTable tr.bc-total td { background: #ecf0f1 !important; font-weight: bold; border-top: 2px solid #2c3e50; }
+.bc-caret { display: inline-block; width: 12px; color: #3498db; font-weight: bold; }
+.bc-var-neg { color: #d32f2f; font-weight: bold; }
+.bc-var-pos { color: #2e7d32; font-weight: bold; }
+.bc-var-nil { color: #b6bfc6; }
+.bc-meter { position: relative; height: 15px; background: #eef1f3; border-radius: 3px; overflow: hidden; min-width: 90px; border: 1px solid #dfe4e8; }
+.bc-meter span { position: absolute; left: 0; top: 0; height: 100%; display: block; }
+.bc-m-claim { background: #f1948a; }
+.bc-m-val { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+.bc-key { display: inline-block; width: 22px; height: 9px; border-radius: 2px; vertical-align: middle; margin: 0 2px; }
+.bc-key-claim { background: #f1948a; }
+.bc-key-val { background: linear-gradient(90deg, #27ae60, #2ecc71); }
+.bc-meter.over { border-color: #8e44ad; box-shadow: inset 0 0 0 1px #8e44ad; }
+.bc-meter.over .bc-m-val { background: repeating-linear-gradient(45deg, #8e44ad, #8e44ad 5px, #a569bd 5px, #a569bd 10px); }
+.bc-pct.bc-over { color: #8e44ad; }
+.bc-pct { font-size: 0.9em; font-weight: 600; }
+.bc-na { color: #b6bfc6; font-style: italic; font-size: 0.9em; }
+.bc-hint { font-size: 0.8em; color: #7f8c8d; font-style: italic; margin: -8px 0 25px 0; }
+.bc-trend { font-size: 0.78em; }
+.bc-trend td { text-align: right; }
+.bc-trend td:first-child { text-align: left; background: #f8f9fa; font-weight: 600; }
+.bar-wrap { display: flex; align-items: center; gap: 8px; width: 100%; }
+.bar-wrap .bar { flex: 0 0 auto; }
+.bar-out { font-size: 0.75em; font-weight: bold; color: #2c3e50; white-space: nowrap; }
+.bc-note-basis { font-size: 0.82em; color: #555; background: #fffde7; border-left: 4px solid #f39c12; padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 14px 0 4px 0; line-height: 1.5; }
+.sc-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 18px 0; padding: 14px 16px; background: #fff; border: 1px dashed #b8c4cf; border-radius: 8px; }
+.sc-btn { display: inline-flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.82em; font-weight: 600; padding: 9px 16px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; transition: all .15s ease; }
+.sc-btn-primary { background: linear-gradient(90deg, #3498db, #2980b9); color: #fff; }
+.sc-btn-primary:hover { filter: brightness(1.08); }
+.sc-btn-outline { background: #fff; color: #2c3e50; border-color: #2c3e50; }
+.sc-btn-outline:hover { background: #2c3e50; color: #fff; }
+.sc-btn-ghost { background: #fff; color: #7f8c8d; border-color: #d5dbdf; }
+.sc-btn-ghost:hover { color: #c0392b; border-color: #c0392b; }
+.sc-status { font-size: 0.8em; color: #7f8c8d; margin-left: auto; font-style: italic; }
+.sc-status.loaded { color: #2e7d32; font-style: normal; font-weight: 600; }
+.sc-status.error { color: #c0392b; font-style: normal; font-weight: 600; }
+.sc-note { font-size: 0.85em; text-align: center; margin-top: 12px; }
+.sc-help { margin-top: 16px; font-size: 0.82em; color: #555; background: #fff; border: 1px solid #e4e8eb; border-radius: 8px; padding: 10px 16px; }
+.sc-help summary { cursor: pointer; font-weight: 600; color: #2c3e50; }
+.sc-help ol { margin: 10px 0 0 0; padding-left: 20px; }
+.sc-help li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<div class="report-container">
+
+<p class="project-title">Setia Sky Ville 2 — Piling, Main Building, Infrastructure, Landscaping and Ancillary Works</p>
+<p style="color:#7f8c8d;font-size:0.9em;margin-top:6px">Proposed development of a 34-storey apartment block including a 6-storey podium (268 units), Lot 10045, Lorong Slim, Seksyen 2, Bandar Jelutong, Daerah Timur Laut, Pulau Pinang.</p>
+
+<div class="meta-grid">
+  <div><b>Employer:</b> Kay Pride Sdn. Bhd.</div>
+  <div><b>Main Contractor:</b> Alunan Asas Sdn. Bhd.</div>
+  <div><b>Consultant QS:</b> Unitech QS Consultancy Sdn. Bhd.</div>
+  <div><b>Architect:</b> T&amp;T Architect Sdn. Bhd.</div>
+  <div><b>Contract Sum:</b> RM 133,800,000.00</div>
+  <div><b>Current Progress Claim:</b> PC 8</div>
+  <div><b>Report Date:</b> 25 Sep 2026</div>
+  <div><b>Contract Form:</b> PAM Contract (10% Retention, 30-Day Payment)</div>
+</div>
+
+
+<div class="tab-nav" role="tablist">
+  <button type="button" class="tab-btn active" data-tab="tabStatus">Claim Status &amp; Payment</button>
+  <button type="button" class="tab-btn" data-tab="tabBills">Bill Comparison &mdash; Claimed vs Valued</button>
+</div>
+
+<div id="tabStatus" class="tab-panel active">
+<h1>REPORT ON PROGRESS CLAIM STATUS</h1>
+
+<div class="kpi-row">
+  <div class="kpi"><div class="k-label">Cumulative Claim Submitted</div><div class="k-value">RM 6,329,248.70</div></div>
+  <div class="kpi"><div class="k-label">Cumulative CQS Certified (Gross)</div><div class="k-value">RM 5,945,982.26</div></div>
+  <div class="kpi green"><div class="k-label">Total Payment Received</div><div class="k-value">RM 2,934,527.06</div></div>
+  <div class="kpi red"><div class="k-label">Outstanding (Certified Unpaid)</div><div class="k-value">RM 2,416,857.97</div></div>
+  <div class="kpi amber"><div class="k-label">Progress vs Contract Sum</div><div class="k-value">4.44%</div></div>
+</div>
+
+<h2>Table 1: Comparison of Cumulative Gross Amounts</h2>
+<table>
+<thead><tr>
+<th style="width:4%">No.</th><th style="width:16%">Progress Claim Submission Date</th>
+<th style="width:16%">CQS Cert Date &amp; Architect Cert Date</th>
+<th style="width:21%">Progress Claim (Gross RM)</th><th style="width:21%">CQS Valuation (Gross RM)</th>
+<th style="width:22%">Variance (RM)</th>
+</tr></thead>
+<tbody>
+<tr><td>1</td><td class="date-col">26 Jan 2026</td><td class="date-col">10 Feb 2026</td>
+<td>985,666.10</td><td>935,263.87</td><td class="variance-neg">(50,402.23)</td></tr>
+<tr><td>2</td><td class="date-col">11 Mar 2026</td><td class="date-col">16 Mar 2026</td>
+<td>1,750,178.38</td><td>1,529,997.60</td><td class="variance-neg">(220,180.78)</td></tr>
+<tr><td>3</td><td class="date-col">26 Mar 2026</td><td class="date-col">13 Apr 2026</td>
+<td>1,775,180.71</td><td>1,704,914.27</td><td class="variance-neg">(70,266.44)</td></tr>
+<tr><td>4</td><td class="date-col">27 Apr 2026</td><td class="date-col">15 May 2026</td>
+<td>2,016,589.04</td><td>1,951,380.19</td><td class="variance-neg">(65,208.85)</td></tr>
+<tr><td>5</td><td class="date-col">29 May 2026</td><td class="date-col">18 Jun 2026</td>
+<td>3,405,838.52</td><td>3,260,585.62</td><td class="variance-neg">(145,252.90)</td></tr>
+<tr><td>6</td><td class="date-col">26 Jun 2026</td><td class="date-col">18 Jul 2026</td>
+<td>3,980,123.25</td><td>3,906,243.24</td><td class="variance-neg">(73,880.01)</td></tr>
+<tr><td>7</td><td class="date-col">30 Jul 2026</td><td class="date-col">18 Aug 2026</td>
+<td>5,221,703.29</td><td>5,102,951.84</td><td class="variance-neg">(118,751.45)</td></tr>
+<tr><td>8</td><td class="date-col">28 Aug 2026</td><td class="date-col">21 Sep 2026</td>
+<td>6,329,248.70</td><td>5,945,982.26</td><td class="variance-neg">(383,266.44)</td></tr>
+<tr class="total-row"><td colspan="3" style="text-align:left;padding-left:15px">TOTAL PROJECT TO DATE (Interim 8)</td>
+<td>6,329,248.70</td><td>5,945,982.26</td><td class="variance-neg">(383,266.44)</td></tr>
+</tbody>
+</table>
+
+<div class="chart-box">
+<div class="chart-title">Cumulative Gross Claim vs CQS Certified — per Claim Period</div>
+<div class="chart-row"><div class="chart-label">PC 1</div><div class="bar-container">
+<div class="bar bar-pc" style="width:15.57%">Claim RM 985,666.10</div>
+<div class="bar bar-vc" style="width:14.78%">CQS RM 935,263.87</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 2</div><div class="bar-container">
+<div class="bar bar-pc" style="width:27.65%">Claim RM 1,750,178.38</div>
+<div class="bar bar-vc" style="width:24.17%">CQS RM 1,529,997.60</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 3</div><div class="bar-container">
+<div class="bar bar-pc" style="width:28.05%">Claim RM 1,775,180.71</div>
+<div class="bar bar-vc" style="width:26.94%">CQS RM 1,704,914.27</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 4</div><div class="bar-container">
+<div class="bar bar-pc" style="width:31.86%">Claim RM 2,016,589.04</div>
+<div class="bar bar-vc" style="width:30.83%">CQS RM 1,951,380.19</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 5</div><div class="bar-container">
+<div class="bar bar-pc" style="width:53.81%">Claim RM 3,405,838.52</div>
+<div class="bar bar-vc" style="width:51.52%">CQS RM 3,260,585.62</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 6</div><div class="bar-container">
+<div class="bar bar-pc" style="width:62.88%">Claim RM 3,980,123.25</div>
+<div class="bar bar-vc" style="width:61.72%">CQS RM 3,906,243.24</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 7</div><div class="bar-container">
+<div class="bar bar-pc" style="width:82.50%">Claim RM 5,221,703.29</div>
+<div class="bar bar-vc" style="width:80.62%">CQS RM 5,102,951.84</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">PC 8</div><div class="bar-container">
+<div class="bar bar-pc" style="width:100.00%">Claim RM 6,329,248.70</div>
+<div class="bar bar-vc" style="width:93.94%">CQS RM 5,945,982.26</div>
+</div></div>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#3498db"></div>Cumulative Progress Claim (Gross)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#2c3e50"></div>Cumulative CQS Valuation (Gross)</div>
+</div>
+</div>
+
+<div class="chart-box" id="scurveBox">
+<div class="chart-title">Project S-Curve — Forecast vs Actual Cumulative CQS Valuation</div>
+
+<div class="sc-toolbar">
+  <button type="button" class="sc-btn sc-btn-outline" id="btnTemplate">&#11015; Download Forecast Template (CSV)</button>
+  <label class="sc-btn sc-btn-primary" for="fileForecast">&#11014; Upload Updated Forecast</label>
+  <input type="file" id="fileForecast" accept=".csv,text/csv" style="display:none">
+  <button type="button" class="sc-btn sc-btn-ghost" id="btnReset">&#8634; Reset to Default</button>
+  <span class="sc-status" id="scStatus">Default forecast &mdash; 42 periods</span>
+</div>
+
+<svg class="graph-svg" id="scurveSvg" viewBox="0 0 1000 450" preserveAspectRatio="xMidYMid meet"></svg>
+
+<div class="legend">
+<div class="legend-item"><div class="legend-line" style="background:#e67e22"></div><span id="lgdForecast">Forecast S-Curve</span></div>
+<div class="legend-item"><div class="legend-line" style="background:#2c3e50"></div>Actual Cumulative CQS Certified (Gross)</div>
+<div class="legend-item"><div class="legend-dot" style="background:#c0392b;border-radius:50%"></div><span id="lgdMarker">Forecast position at current PC</span></div>
+</div>
+
+<p id="scNote" class="sc-note"></p>
+
+<details class="sc-help">
+<summary>How to update the forecast S-curve</summary>
+<ol>
+<li>Click <b>Download Forecast Template (CSV)</b>. The file opens in Excel and is already filled with the forecast now on the chart.</li>
+<li>Edit column <b>Forecast Cumulative (RM)</b> &mdash; key in your own programme figures. Column <b>Period Label</b> is optional (e.g. Jan-2026) and is only used for the chart labels.</li>
+<li>Add or delete rows freely. The chart re-scales to however many periods you leave in the file.</li>
+<li>Save as CSV, then click <b>Upload Updated Forecast</b> and pick the file. The orange line, the red forecast marker and the ahead/behind note all refresh straight away.</li>
+<li>Your uploaded forecast is remembered on this PC. Click <b>Reset to Default</b> to go back to the original curve.</li>
+</ol>
+<p style="margin:8px 0 0 0"><b>Rules:</b> figures must be <i>cumulative</i> (running total, always increasing). Commas and "RM" are fine &mdash; they are stripped automatically. Blank rows are skipped.</p>
+</details>
+</div>
+
+<h2>Table 2: Summary of Amount Due &amp; Payment Tracking</h2>
+<table>
+<thead><tr>
+<th style="width:3%">No.</th><th style="width:9%">CQS Cert Date</th><th style="width:9%">Payment Due Date (+30 Days)</th>
+<th style="width:12%">Progress Claim Amount (RM)</th><th style="width:12%">CQS Valuation Amount (RM)</th>
+<th style="width:11%">Variance (RM)</th><th style="width:12%">Certified Amt Aft Rent. (RM)</th>
+<th style="width:12%">Payment Received (RM)</th><th style="width:11%">Invoice No.</th><th style="width:9%">Status</th>
+</tr></thead>
+<tbody>
+<tr><td>1</td><td class="date-col">10 Feb 2026</td><td class="date-col">12 Mar 2026</td>
+<td>985,666.10</td><td>935,263.87</td><td class="variance-neg">(50,402.23)</td>
+<td class="cert-aft-rent-col">841,737.48</td><td class="received-col">841,737.48</td><td class="invoice-col">SI-2026-02-0020</td>
+<td class="status-received">RECEIVED</td></tr>
+<tr><td>2</td><td class="date-col">16 Mar 2026</td><td class="date-col">15 Apr 2026</td>
+<td>764,512.28</td><td>594,733.73</td><td class="variance-neg">(169,778.55)</td>
+<td class="cert-aft-rent-col">535,260.36</td><td class="received-col">535,260.36</td><td class="invoice-col">SI-2026-03-0037</td>
+<td class="status-received">RECEIVED</td></tr>
+<tr><td>3</td><td class="date-col">13 Apr 2026</td><td class="date-col">13 May 2026</td>
+<td>25,002.33</td><td>174,916.67</td><td>149,914.34</td>
+<td class="cert-aft-rent-col">157,425.00</td><td class="received-col">157,425.00</td><td class="invoice-col">SI-2026-04-0025</td>
+<td class="status-received">RECEIVED</td></tr>
+<tr><td>4</td><td class="date-col">15 May 2026</td><td class="date-col">14 Jun 2026</td>
+<td>241,408.33</td><td>246,465.92</td><td>5,057.59</td>
+<td class="cert-aft-rent-col">221,819.33</td><td class="received-col">221,819.33</td><td class="invoice-col">SI-2026-05-0019</td>
+<td class="status-received">RECEIVED</td></tr>
+<tr><td>5</td><td class="date-col">18 Jun 2026</td><td class="date-col">18 Jul 2026</td>
+<td>1,389,249.48</td><td>1,309,205.43</td><td class="variance-neg">(80,044.05)</td>
+<td class="cert-aft-rent-col">1,178,284.89</td><td class="received-col">1,178,284.89</td><td class="invoice-col">SI-2026-06-0041</td>
+<td class="status-received">RECEIVED</td></tr>
+<tr><td>6</td><td class="date-col">18 Jul 2026</td><td class="date-col">17 Aug 2026</td>
+<td>574,284.73</td><td>645,657.62</td><td>71,372.89</td>
+<td class="cert-aft-rent-col">581,091.86</td><td style="background:#fff5f5;color:#c0392b;font-weight:bold">0.00</td><td class="invoice-col">SI-2026-07-0029</td>
+<td class="status-due">DUE</td></tr>
+<tr><td>7</td><td class="date-col">18 Aug 2026</td><td class="date-col">17 Sep 2026</td>
+<td>1,241,580.04</td><td>1,196,708.60</td><td class="variance-neg">(44,871.44)</td>
+<td class="cert-aft-rent-col">1,077,037.74</td><td style="background:#fff5f5;color:#c0392b;font-weight:bold">0.00</td><td class="invoice-col">SI-2026-08-0033</td>
+<td class="status-due">DUE</td></tr>
+<tr><td>8</td><td class="date-col">21 Sep 2026</td><td class="date-col">21 Oct 2026</td>
+<td>1,107,545.41</td><td>843,030.42</td><td class="variance-neg">(264,514.99)</td>
+<td class="cert-aft-rent-col">758,727.37</td><td style="background:#fff5f5;color:#c0392b;font-weight:bold">0.00</td><td class="invoice-col">SI-2026-09-0039</td>
+<td class="status-not-due">NOT DUE</td></tr>
+<tr class="total-row"><td colspan="3" style="text-align:left;padding-left:15px">TOTAL (Certs 1–8)</td>
+<td>6,329,248.70</td><td>5,945,982.26</td><td class="variance-neg">(383,266.44)</td>
+<td class="cert-aft-rent-col">5,351,384.03</td><td class="received-col">2,934,527.06</td><td></td><td></td></tr>
+</tbody>
+</table>
+<p style="font-style: italic; font-size: 0.85em; color: #555; margin-top: -10px; margin-bottom: 25px;">
+  * Progress Claim Amount (RM) = Cumulative claim amount for this cert &minus; cumulative claim amount for the previous cert (i.e. the actual work claimed in this period). The total of this column therefore ties back to the total cumulative claim amount in Table 1. Variance (RM) = CQS Valuation Amount &minus; Progress Claim Amount (the opposite way round from Table 1's Variance column).
+</p>
+
+<div class="chart-box">
+<div class="chart-title">Periodic Claim vs Valuation vs Certified vs Payment Received</div>
+<div class="chart-row"><div class="chart-label">Cert 1</div><div class="bar-container">
+<div class="bar bar-pc" style="width:70.95%">Claim RM 985,666.10</div>
+<div class="bar bar-vc" style="width:67.32%">Valued RM 935,263.87</div>
+<div class="bar bar-cert" style="width:60.59%">Certified RM 841,737.48</div>
+<div class="bar bar-received" style="width:60.59%">Received RM 841,737.48</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 2</div><div class="bar-container">
+<div class="bar bar-pc" style="width:55.03%">Claim RM 764,512.28</div>
+<div class="bar bar-vc" style="width:42.81%">Valued RM 594,733.73</div>
+<div class="bar bar-cert" style="width:38.53%">Certified RM 535,260.36</div>
+<div class="bar bar-received" style="width:38.53%">Received RM 535,260.36</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 3</div><div class="bar-container">
+<div class="bar bar-pc" style="width:1.80%">Claim RM 25,002.33</div>
+<div class="bar bar-vc" style="width:12.59%">Valued RM 174,916.67</div>
+<div class="bar bar-cert" style="width:11.33%">Certified RM 157,425.00</div>
+<div class="bar bar-received" style="width:11.33%">Received RM 157,425.00</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 4</div><div class="bar-container">
+<div class="bar bar-pc" style="width:17.37%">Claim RM 241,408.33</div>
+<div class="bar bar-vc" style="width:17.74%">Valued RM 246,465.92</div>
+<div class="bar bar-cert" style="width:15.97%">Certified RM 221,819.33</div>
+<div class="bar bar-received" style="width:15.97%">Received RM 221,819.33</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 5</div><div class="bar-container">
+<div class="bar bar-pc" style="width:100.00%">Claim RM 1,389,249.48</div>
+<div class="bar bar-vc" style="width:94.24%">Valued RM 1,309,205.43</div>
+<div class="bar bar-cert" style="width:84.82%">Certified RM 1,178,284.89</div>
+<div class="bar bar-received" style="width:84.82%">Received RM 1,178,284.89</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 6</div><div class="bar-container">
+<div class="bar bar-pc" style="width:41.34%">Claim RM 574,284.73</div>
+<div class="bar bar-vc" style="width:46.47%">Valued RM 645,657.62</div>
+<div class="bar bar-cert" style="width:41.83%">Certified RM 581,091.86</div>
+<div class="bar-none">Payment Received — RM 0.00 (outstanding)</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 7</div><div class="bar-container">
+<div class="bar bar-pc" style="width:89.37%">Claim RM 1,241,580.04</div>
+<div class="bar bar-vc" style="width:86.14%">Valued RM 1,196,708.60</div>
+<div class="bar bar-cert" style="width:77.52%">Certified RM 1,077,037.74</div>
+<div class="bar-none">Payment Received — RM 0.00 (outstanding)</div>
+</div></div>
+<div class="chart-row"><div class="chart-label">Cert 8</div><div class="bar-container">
+<div class="bar bar-pc" style="width:79.72%">Claim RM 1,107,545.41</div>
+<div class="bar bar-vc" style="width:60.68%">Valued RM 843,030.42</div>
+<div class="bar bar-cert" style="width:54.61%">Certified RM 758,727.37</div>
+<div class="bar-none">Payment Received — RM 0.00 (outstanding)</div>
+</div></div>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#3498db"></div>Progress Claim Amount</div>
+<div class="legend-item"><div class="legend-dot" style="background:#2c3e50"></div>CQS Valuation Amount</div>
+<div class="legend-item"><div class="legend-dot" style="background:#0366d6"></div>Certified After 10% Retention</div>
+<div class="legend-item"><div class="legend-dot" style="background:#27ae60"></div>Payment Received</div>
+</div>
+</div>
+
+</div>
+
+<div id="tabBills" class="tab-panel">
+
+<h1>BILL COMPARISON &mdash; CLAIMED vs VALUED</h1>
+
+<div class="bc-toolbar">
+  <div class="bc-group">
+    <span class="bc-lbl">Claim period</span>
+    <div class="bc-pcs" id="bcPcs"></div>
+  </div>
+  <div class="bc-group">
+    <span class="bc-lbl">Basis</span>
+    <div class="bc-seg" id="bcBasis">
+      <button type="button" class="bc-seg-btn active" data-basis="cum">Cumulative to date</button>
+      <button type="button" class="bc-seg-btn" data-basis="per">This period only</button>
+    </div>
+  </div>
+  <label class="bc-check"><input type="checkbox" id="bcHideNil" checked> Hide bills with no movement</label>
+</div>
+
+<p class="bc-note-basis"><b>Note on basis:</b> "This period only" here means <i>this bill moved by</i> = cumulative claimed (PC N) &minus; cumulative claimed (PC N&minus;1). The <i>Progress Claim Amount</i> in Table 2 of the Claim Status tab now uses this same basis at the whole-project level, so the two totals reconcile. Use this tab to see which bill the work moved in and where the CQS cut; use Table 2 for what was invoiced overall.</p>
+
+<div class="kpi-row" id="bcKpis"></div>
+
+<table id="bcTable">
+<thead><tr>
+<th style="width:5%">Bill</th><th style="width:27%">Description</th>
+<th style="width:13%">Contract Sum (RM)</th>
+<th style="width:13%">Claimed (RM)</th><th style="width:13%">Valued by CQS (RM)</th>
+<th style="width:12%">Variance (RM)</th><th style="width:12%">Progress vs Contract Sum</th>
+<th style="width:6%">% Valued</th>
+</tr></thead>
+<tbody id="bcBody"></tbody>
+</table>
+
+<p class="bc-hint">Rows with a <span class="bc-caret">&#9656;</span> can be opened to show the bill elements. Variance = Valued &minus; Claimed; red in brackets means the CQS certified less than claimed.
+The progress bar runs against the full contract sum of that bill: <span class="bc-key bc-key-claim"></span> claimed, <span class="bc-key bc-key-val"></span> valued by CQS. The pink strip on the right of the green is the part claimed but not yet certified. A purple striped bar means that bill or element has been valued <b>above</b> its contract sum &mdash; check for a variation or a re-measure. Hover a bar for the exact percentages.</p>
+
+<div class="chart-box">
+<div class="chart-title" id="bcChartTitle">Claimed vs Valued by Bill</div>
+<div id="bcChart"></div>
+<div class="legend">
+<div class="legend-item"><div class="legend-dot" style="background:#3498db"></div>Claimed</div>
+<div class="legend-item"><div class="legend-dot" style="background:#2c3e50"></div>Valued by CQS</div>
+</div>
+</div>
+
+<div class="chart-box">
+<div class="chart-title">Cumulative Variance by Bill &mdash; PC1 to PC8</div>
+<table class="bc-trend"><thead><tr><th style="width:26%">Bill</th>
+<th>PC1</th><th>PC2</th><th>PC3</th><th>PC4</th><th>PC5</th><th>PC6</th><th>PC7</th><th>PC8</th></tr></thead>
+<tbody id="bcTrend"></tbody></table>
+<p class="bc-hint" style="margin-top:10px">Cumulative variance (Valued &minus; Claimed) at the end of each claim period. Red = under-certified against the claim.</p>
+</div>
+
+</div>
+
+<div class="footer">
+<p>Report generated on 25 Sep 2026 from Progress Claim, CQS Valuation Certificate and Tax Invoice records.</p>
+<p><b>Periodic claim methodology:</b> Progress Claim Amount (Cert N) = Cumulative Gross Claim (PC N) − Cumulative Gross Claim (Cert N−1). Table 2 total therefore ties back to Table 1's cumulative claim total. Variance (RM) in Table 2 = CQS Valuation Amount − Progress Claim Amount (opposite sign order from Table 1's Variance).</p>
+<p><b>Latest CQS certificate:</b> UNI/23/005/MCW/VA-008 dated 21 Sep 2026 — Interim Payment No. 8 recommending RM 758,727.37.</p>
+<p><b>Latest invoice:</b> SI-2026-09-0039 dated 21 Sep 2026 — RM 758,727.37 (net of 10% retention).</p>
+<p><b>Payments confirmed received:</b> Certs 1 to 5 totalling RM 2,934,527.06. Cert 6 (RM 581,091.86, due 17 Aug 2026) and Cert 7 (RM 1,077,037.74, due 17 Sep 2026) are now overdue; Cert 8 (RM 758,727.37) is not yet due (due 21 Oct 2026). Total outstanding certified but unpaid: RM 2,416,857.97.</p>
+<p style="margin-top:12px;color:#bdc3c7">Alunan Asas Sdn. Bhd. — Quantity Surveying Department | Internal use / client circulation</p>
+</div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var SC = {"contract": 133800000.0, "currentPC": 8, "actual": [{"n": 1, "v": 935263.87}, {"n": 2, "v": 1529997.6}, {"n": 3, "v": 1704914.27}, {"n": 4, "v": 1951380.19}, {"n": 5, "v": 3260585.62}, {"n": 6, "v": 3906243.24}, {"n": 7, "v": 5102951.84}, {"n": 8, "v": 5945982.26}], "defaultForecast": [{"n": 0, "v": 0.0}, {"n": 1, "v": 11869.45}, {"n": 2, "v": 94637.36}, {"n": 3, "v": 317618.4}, {"n": 4, "v": 746995.16}, {"n": 5, "v": 1444339.65}, {"n": 6, "v": 2465237.94}, {"n": 7, "v": 3858048.45}, {"n": 8, "v": 5662821.68}, {"n": 9, "v": 7910405.58}, {"n": 10, "v": 10621756.42}, {"n": 11, "v": 13807470.7}, {"n": 12, "v": 17467548.43}, {"n": 13, "v": 21591393.11}, {"n": 14, "v": 26158048.45}, {"n": 15, "v": 31136666.51}, {"n": 16, "v": 36487196.79}, {"n": 17, "v": 42161280.87}, {"n": 18, "v": 48103332.69}, {"n": 19, "v": 54251780.21}, {"n": 20, "v": 60540440.88}, {"n": 21, "v": 66900000.0}, {"n": 22, "v": 73259559.12}, {"n": 23, "v": 79548219.79}, {"n": 24, "v": 85696667.31}, {"n": 25, "v": 91638719.13}, {"n": 26, "v": 97312803.21}, {"n": 27, "v": 102663333.49}, {"n": 28, "v": 107641951.55}, {"n": 29, "v": 112208606.89}, {"n": 30, "v": 116332451.57}, {"n": 31, "v": 119992529.3}, {"n": 32, "v": 123178243.58}, {"n": 33, "v": 125889594.42}, {"n": 34, "v": 128137178.32}, {"n": 35, "v": 129941951.55}, {"n": 36, "v": 131334762.06}, {"n": 37, "v": 132355660.35}, {"n": 38, "v": 133053004.84}, {"n": 39, "v": 133482381.6}, {"n": 40, "v": 133705362.64}, {"n": 41, "v": 133788130.55}, {"n": 42, "v": 133800000.0}]};
+  SC.labels = ["Jan-2026", "Feb-2026", "Mar-2026", "Apr-2026", "May-2026", "Jun-2026"];
+  var KEY = "sv2_forecast_v1";
+  var X0 = 90, X1 = 960, Y0 = 390, Y1 = 40;
+  var forecast = null;
+
+  function money(v) {
+    return v.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+  function shortM(v) { return (v / 1e6).toFixed(0) + "M"; }
+  function el(tag, attrs, text) {
+    var e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function load() {
+    try {
+      var raw = window.localStorage.getItem(KEY);
+      if (raw) {
+        var p = JSON.parse(raw);
+        if (p && p.rows && p.rows.length > 1) return p;
+      }
+    } catch (e) {}
+    return null;
+  }
+  function save(obj) { try { window.localStorage.setItem(KEY, JSON.stringify(obj)); } catch (e) {} }
+  function clear() { try { window.localStorage.removeItem(KEY); } catch (e) {} }
+
+  function defaultRows() {
+    return SC.defaultForecast.map(function (d) {
+      return {n: d.n, label: "", v: d.v};
+    });
+  }
+
+  function interp(rows, x) {
+    if (!rows.length) return 0;
+    if (x <= rows[0].n) return rows[0].v;
+    for (var i = 1; i < rows.length; i++) {
+      if (x <= rows[i].n) {
+        var a = rows[i - 1], b = rows[i];
+        if (b.n === a.n) return b.v;
+        return a.v + (b.v - a.v) * (x - a.n) / (b.n - a.n);
+      }
+    }
+    return rows[rows.length - 1].v;
+  }
+
+  function render() {
+    var rows = forecast.rows;
+    var svg = document.getElementById("scurveSvg");
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    var nMax = 0, vMax = 0, i;
+    for (i = 0; i < rows.length; i++) {
+      if (rows[i].n > nMax) nMax = rows[i].n;
+      if (rows[i].v > vMax) vMax = rows[i].v;
+    }
+    for (i = 0; i < SC.actual.length; i++) {
+      if (SC.actual[i].n > nMax) nMax = SC.actual[i].n;
+      if (SC.actual[i].v > vMax) vMax = SC.actual[i].v;
+    }
+    var yMax = Math.max(SC.contract, vMax);
+    if (nMax < 1) nMax = 1;
+
+    function X(n) { return X0 + (X1 - X0) * (n / nMax); }
+    function Y(v) { return Y0 - (Y0 - Y1) * (v / yMax); }
+
+    var p, yy, t;
+    for (p = 20; p <= 100; p += 20) {
+      yy = Y(yMax * p / 100);
+      svg.appendChild(el("line", {x1: X0, y1: yy.toFixed(1), x2: X1, y2: yy.toFixed(1), "class": "grid-line"}));
+    }
+    svg.appendChild(el("line", {x1: X0, y1: Y0, x2: X1, y2: Y0, "class": "axis"}));
+    svg.appendChild(el("line", {x1: X0, y1: Y0, x2: X0, y2: Y1, "class": "axis"}));
+
+    var step = Math.max(1, Math.ceil(nMax / 7));
+    for (var n = step; n <= nMax; n += step) {
+      var lab = "PC " + n;
+      for (i = 0; i < rows.length; i++) {
+        if (rows[i].n === n && rows[i].label) { lab = rows[i].label; break; }
+      }
+      svg.appendChild(el("text", {x: X(n).toFixed(1), y: 410, "class": "axis-label", "text-anchor": "middle"}, lab));
+    }
+    for (p = 0; p <= 100; p += 20) {
+      yy = Y(yMax * p / 100);
+      svg.appendChild(el("text", {x: 82, y: (yy + 4).toFixed(1), "class": "axis-label", "text-anchor": "end"}, shortM(yMax * p / 100)));
+    }
+    t = el("text", {x: 525, y: 435, "class": "axis-label", "text-anchor": "middle", style: "font-size:12px"},
+      "Progress Claim Period (PC 1 \u2013 PC " + nMax + ")");
+    svg.appendChild(t);
+    t = el("text", {x: 20, y: 215, "class": "axis-label", "text-anchor": "middle", transform: "rotate(-90 20 215)", style: "font-size:12px"}, "Cumulative Value (RM)");
+    svg.appendChild(t);
+
+    var fpts = rows.map(function (r) { return X(r.n).toFixed(1) + "," + Y(r.v).toFixed(1); }).join(" ");
+    svg.appendChild(el("polyline", {"class": "line-forecast", points: fpts}));
+
+    var apts = SC.actual.map(function (r) { return X(r.n).toFixed(1) + "," + Y(r.v).toFixed(1); }).join(" ");
+    svg.appendChild(el("polyline", {"class": "line-actual-vc", points: apts}));
+    SC.actual.forEach(function (r) {
+      var c = el("circle", {cx: X(r.n).toFixed(1), cy: Y(r.v).toFixed(1), r: 4, "class": "data-point-vc"});
+      c.appendChild(el("title", {}, "PC " + r.n + " actual: RM " + money(r.v)));
+      svg.appendChild(c);
+    });
+
+    var pc = SC.currentPC;
+    var fv = interp(rows, pc);
+    var av = SC.actual[SC.actual.length - 1].v;
+    var fdot = el("circle", {cx: X(pc).toFixed(1), cy: Y(fv).toFixed(1), r: 5, fill: "#c0392b"});
+    fdot.appendChild(el("title", {}, "Forecast @ PC " + pc + ": RM " + money(fv)));
+    svg.appendChild(fdot);
+    svg.appendChild(el("line", {x1: X(pc).toFixed(1), y1: Y(fv).toFixed(1), x2: X(pc).toFixed(1), y2: Y(av).toFixed(1),
+      stroke: "#c0392b", "stroke-width": 1, "stroke-dasharray": "3,3", opacity: 0.6}));
+
+    var diff = av - fv;
+    var ahead = diff >= 0;
+
+    // callout box (top-left of plot) so labels never sit on the axis
+    var bx = X0 + 25, by = 55;
+    svg.appendChild(el("rect", {x: bx, y: by, width: 330, height: 74, rx: 6,
+      fill: "#ffffff", stroke: "#dfe4e8", "stroke-width": 1, opacity: 0.96}));
+    svg.appendChild(el("rect", {x: bx, y: by, width: 4, height: 74,
+      fill: ahead ? "#27ae60" : "#c0392b"}));
+    svg.appendChild(el("text", {x: bx + 16, y: by + 22, style: "font-size:11.5px;fill:#2c3e50;font-weight:bold"},
+      "PC " + pc + " Actual Certified:  RM " + money(av)));
+    svg.appendChild(el("text", {x: bx + 16, y: by + 42, style: "font-size:11.5px;fill:#c0392b;font-weight:bold"},
+      "PC " + pc + " Forecast:  RM " + money(fv)));
+    svg.appendChild(el("text", {x: bx + 16, y: by + 63,
+      style: "font-size:11.5px;font-weight:bold;fill:" + (ahead ? "#2e7d32" : "#c0392b")},
+      (ahead ? "\u25B2 Ahead by RM " : "\u25BC Behind by RM ") + money(Math.abs(diff))));
+    var note = document.getElementById("scNote");
+    note.style.color = ahead ? "#2e7d32" : "#c0392b";
+    note.innerHTML = "<b>Note:</b> Actual certified value at PC " + pc + " is RM " + money(av) +
+      " against a forecast of RM " + money(fv) + " \u2014 the works are currently <b>" +
+      (ahead ? "ahead of" : "behind") + "</b> the forecast S-curve by RM " + money(Math.abs(diff)) + ".";
+
+    document.getElementById("lgdForecast").textContent =
+      "Forecast S-Curve (" + nMax + " periods, ends RM " + money(rows[rows.length - 1].v) + ")";
+    document.getElementById("lgdMarker").textContent = "Forecast position at PC " + pc;
+
+    var st = document.getElementById("scStatus");
+    st.className = "sc-status" + (forecast.custom ? " loaded" : "");
+    st.textContent = forecast.custom
+      ? "Custom forecast loaded \u2014 " + rows.length + " rows" + (forecast.file ? " from " + forecast.file : "")
+      : "Default forecast \u2014 " + nMax + " periods";
+  }
+
+  function setForecast(rows, custom, file) {
+    rows.sort(function (a, b) { return a.n - b.n; });
+    forecast = {rows: rows, custom: !!custom, file: file || ""};
+    if (custom) save(forecast); else clear();
+    render();
+  }
+
+  function csvEscape(s) {
+    s = String(s == null ? "" : s);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  document.getElementById("btnTemplate").addEventListener("click", function () {
+    var out = ["PC No,Period Label,Forecast Cumulative (RM)"];
+    forecast.rows.forEach(function (r) {
+      out.push([r.n, csvEscape(r.label), r.v.toFixed(2)].join(","));
+    });
+    out.push("");
+    out.push("# Cumulative (running total) figures only - must not go down.");
+    out.push("# Period Label is optional and only used for the chart x-axis.");
+    out.push("# Add or delete rows as needed - the chart re-scales automatically.");
+    var blob = new Blob(["\ufeff" + out.join("\r\n")], {type: "text/csv;charset=utf-8;"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "SV2_forecast_scurve_template.csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1500);
+  });
+
+  document.getElementById("btnReset").addEventListener("click", function () {
+    setForecast(defaultRows(), false, "");
+  });
+
+  document.getElementById("fileForecast").addEventListener("change", function (ev) {
+    var f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    var rd = new FileReader();
+    var st = document.getElementById("scStatus");
+    rd.onload = function () {
+      try {
+        var text = String(rd.result).replace(/^\ufeff/, "");
+        var lines = text.split(/\r\n|\n|\r/);
+        var rows = [], bad = 0;
+        for (var i = 0; i < lines.length; i++) {
+          var raw = lines[i].trim();
+          if (!raw || raw.charAt(0) === "#") continue;
+          var cells = raw.match(/("([^"]|"")*"|[^,]*)(,|$)/g) || [];
+          cells = cells.map(function (c) {
+            c = c.replace(/,$/, "").trim();
+            if (c.charAt(0) === '"') c = c.slice(1, -1).replace(/""/g, '"');
+            return c;
+          });
+          var nRaw = (cells[0] || "").replace(/[^0-9.\-]/g, "");
+          var vRaw = (cells[2] !== undefined ? cells[2] : cells[1] || "").replace(/[^0-9.\-]/g, "");
+          var n = parseFloat(nRaw), v = parseFloat(vRaw);
+          if (!isFinite(n) || !isFinite(v)) { bad++; continue; }
+          rows.push({n: n, label: (cells[2] !== undefined ? (cells[1] || "") : ""), v: v});
+        }
+        if (rows.length < 2) throw new Error("Need at least 2 valid rows of PC No and cumulative amount.");
+        var drop = 0;
+        for (var j = 1; j < rows.length; j++) if (rows[j].v < rows[j - 1].v) drop++;
+        setForecast(rows, true, f.name);
+        if (drop > 0) {
+          st.className = "sc-status loaded";
+          st.textContent = "Loaded " + rows.length + " rows from " + f.name + " \u2014 warning: " + drop + " row(s) go down (not cumulative).";
+        }
+      } catch (err) {
+        st.className = "sc-status error";
+        st.textContent = "Could not read that file: " + err.message;
+      }
+      ev.target.value = "";
+    };
+    rd.onerror = function () {
+      st.className = "sc-status error";
+      st.textContent = "Could not read that file.";
+      ev.target.value = "";
+    };
+    rd.readAsText(f);
+  });
+
+  var saved = load();
+  if (saved) { forecast = saved; render(); }
+  else { setForecast(defaultRows(), false, ""); }
+})();
+</script>
+
+
+<script>
+(function () {
+  "use strict";
+  var BC = {"bills": [{"no": 1, "name": "General Conditions And Preliminaries", "contract": 14475265.26}, {"no": 2, "name": "Demolition, Site Clearance, Earthworks And Temporary Works", "contract": 933246.14}, {"no": 3, "name": "Piling Works (All Provisional)", "contract": 9586183.4}, {"no": 4, "name": "Podium (L1, L2-L6)", "contract": 22480827.31}, {"no": 5, "name": "Facilities Floor (L7)", "contract": 6715386.18}, {"no": 6, "name": "Tower", "contract": 43429257.68}, {"no": 7, "name": "Internal Sanitary & Plumbing", "contract": 4023995.76}, {"no": 8, "name": "Landscape", "contract": 4866000.02}, {"no": 9, "name": "Mechanical & Electrical Works", "contract": 19202774.6}, {"no": 10, "name": "External Works (All Provisional)", "contract": 3306971.37}, {"no": 11, "name": "Road Upgrading Works (All Provisional)", "contract": 741734.4}, {"no": 12, "name": "P.C. And Provisional Sums", "contract": 3790000.0}, {"no": 13, "name": "Signage And Wayfinding", "contract": 248357.88}, {"no": "VO", "name": "Variation Order Works (Approved)", "contract": null}, {"no": "MOS", "name": "Material On Site (75%)", "contract": null}], "elements": {"1": ["Initial Cost", "Recurring Cost", "Final Cost"], "2": ["Demolition Works", "Temporary Works (All Provisional)", "Site Clearance And Earthworks (All Provisional)", "Retaining Wall (All Provisional)"], "3": ["Main Building", "External Works"]}, "elemContract": {"1": [1475013.0, 12511252.26, 489000.0], "2": [156820.94, 281475.2, 280050.0, 214900.0], "3": [9217581.6, 368601.8]}, "pcs": [{"pc": 1, "rows": [{"bill": 1, "cClaim": 677013.4, "cVal": 676513.4, "pClaim": 677013.4, "pVal": 676513.4, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 677013.4, "cVal": 676513.4, "pClaim": 677013.4, "pVal": 676513.4}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 308652.7, "cVal": 258750.47, "pClaim": 308652.7, "pVal": 258750.47, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 138520.94, "cVal": 96260.47, "pClaim": 138520.94, "pVal": 96260.47}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 163131.76, "cVal": 155490.0, "pClaim": 163131.76, "pVal": 155490.0}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 7000.0, "cVal": 7000.0, "pClaim": 7000.0, "pVal": 7000.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "External Works", "contract": 368601.8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}], "totC": {"claim": 985666.1, "val": 935263.87}, "totP": {"claim": 985666.1, "val": 935263.87}}, {"pc": 2, "rows": [{"bill": 1, "cClaim": 776160.8, "cVal": 801625.52, "pClaim": 99147.4, "pVal": 125112.12, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 677013.4, "cVal": 676513.0, "pClaim": 0.0, "pVal": -0.4}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 99147.4, "cVal": 125112.52, "pClaim": 99147.4, "pVal": 125112.52}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 687686.14, "cVal": 577591.56, "pClaim": 379033.44, "pVal": 318841.09, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": null, "cVal": 138520.94, "pClaim": null, "pVal": 42260.47}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": null, "cVal": 220590.62, "pClaim": null, "pVal": 65100.62}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": null, "cVal": 218480.0, "pClaim": null, "pVal": 211480.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": null, "cVal": 0.0, "pClaim": null, "pVal": 0.0}]}, {"bill": 3, "cClaim": 259664.82, "cVal": 124537.85, "pClaim": 259664.82, "pVal": 124537.85, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": null, "cVal": 124537.85, "pClaim": null, "pVal": 124537.85}, {"name": "External Works", "contract": 368601.8, "cClaim": null, "cVal": 0.0, "pClaim": null, "pVal": 0.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 26666.62, "cVal": 26242.67, "pClaim": 26666.62, "pVal": 26242.67, "elems": null}], "totC": {"claim": 1750178.38, "val": 1529997.6}, "totP": {"claim": 764512.28, "val": 594733.73}}, {"pc": 3, "rows": [{"bill": 1, "cClaim": 802125.52, "cVal": 801625.52, "pClaim": 25964.72, "pVal": 0.0, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 677013.0, "cVal": 676513.0, "pClaim": -0.4, "pVal": 0.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 125112.52, "cVal": 125112.52, "pClaim": 25965.12, "pVal": 0.0}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 590129.32, "cVal": 585134.32, "pClaim": -97556.82, "pVal": 7542.76, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 138520.94, "cVal": 138520.94, "pClaim": null, "pVal": 0.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 223128.38, "cVal": 221833.38, "pClaim": null, "pVal": 1242.76}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 228480.0, "cVal": 224780.0, "pClaim": null, "pVal": 6300.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": null, "pVal": 0.0}]}, {"bill": 3, "cClaim": 212485.22, "cVal": 221600.18, "pClaim": -47179.6, "pVal": 97062.33, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 163163.05, "cVal": 175903.45, "pClaim": null, "pVal": 51365.6}, {"name": "External Works", "contract": 368601.8, "cClaim": 49322.17, "cVal": 45696.73, "pClaim": null, "pVal": 45696.73}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 170440.65, "cVal": 96554.25, "pClaim": 143774.03, "pVal": 70311.58, "elems": null}], "totC": {"claim": 1775180.71, "val": 1704914.27}, "totP": {"claim": 25002.33, "val": 174916.67}}, {"pc": 4, "rows": [{"bill": 1, "cClaim": 802125.52, "cVal": 801625.52, "pClaim": 0.0, "pVal": 0.0, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 677013.0, "cVal": 676513.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 125112.52, "cVal": 125112.52, "pClaim": 0.0, "pVal": 0.0}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 590129.32, "cVal": 589766.38, "pClaim": 0.0, "pVal": 4632.06, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 138520.94, "cVal": 138520.94, "pClaim": 0.0, "pVal": 0.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 223128.38, "cVal": 222765.44, "pClaim": 0.0, "pVal": 932.06}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 228480.0, "cVal": 228480.0, "pClaim": 0.0, "pVal": 3700.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 509355.6, "cVal": 507858.94, "pClaim": 296870.38, "pVal": 286258.76, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 316153.45, "cVal": 316153.45, "pClaim": 152990.4, "pVal": 140250.0}, {"name": "External Works", "contract": 368601.8, "cClaim": 193202.15, "cVal": 191705.49, "pClaim": 143879.98, "pVal": 146008.76}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 114978.6, "cVal": 52129.35, "pClaim": -55462.05, "pVal": -44424.9, "elems": null}], "totC": {"claim": 2016589.04, "val": 1951380.19}, "totP": {"claim": 241408.33, "val": 246465.92}}, {"pc": 5, "rows": [{"bill": 1, "cClaim": 1620487.45, "cVal": 1566125.52, "pClaim": 818361.93, "pVal": 764500.0, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 1442013.0, "cVal": 1441013.0, "pClaim": 765000.0, "pVal": 764500.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 178474.45, "cVal": 125112.52, "pClaim": 53361.93, "pVal": 0.0}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 769462.07, "cVal": 699190.44, "pClaim": 179332.75, "pVal": 109424.06, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 138520.94, "cVal": 138520.94, "pClaim": 0.0, "pVal": 0.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 291536.13, "cVal": 223697.5, "pClaim": 68407.75, "pVal": 932.06}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 339405.0, "cVal": 336972.0, "pClaim": 110925.0, "pVal": 108492.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 934439.0, "cVal": 918460.06, "pClaim": 425083.4, "pVal": 410601.12, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 736907.72, "cVal": 725545.57, "pClaim": 420754.27, "pVal": 409392.12}, {"name": "External Works", "contract": 368601.8, "cClaim": 197531.28, "cVal": 192914.49, "pClaim": 4329.13, "pVal": 1209.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 81450.0, "cVal": 76809.6, "pClaim": -33528.6, "pVal": 24680.25, "elems": null}], "totC": {"claim": 3405838.52, "val": 3260585.62}, "totP": {"claim": 1389249.48, "val": 1309205.43}}, {"pc": 6, "rows": [{"bill": 1, "cClaim": 1677046.25, "cVal": 1691238.05, "pClaim": 56558.8, "pVal": 125112.53, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 1442013.0, "cVal": 1441013.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 235033.25, "cVal": 250225.05, "pClaim": 56558.8, "pVal": 125112.53}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 747683.66, "cVal": 718422.51, "pClaim": -21778.41, "pVal": 19232.07, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 156820.94, "cVal": 156820.94, "pClaim": 18300.0, "pVal": 18300.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 253890.72, "cVal": 224629.57, "pClaim": -37645.41, "pVal": 932.07}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 336972.0, "cVal": 336972.0, "pClaim": -2433.0, "pVal": 0.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 1479889.19, "cVal": 1449258.88, "pClaim": 545450.19, "pVal": 530798.82, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 1282377.97, "cVal": 1256344.39, "pClaim": 545470.25, "pVal": 530798.82}, {"name": "External Works", "contract": 368601.8, "cClaim": 197511.22, "cVal": 192914.49, "pClaim": -20.06, "pVal": 0.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 75504.15, "cVal": 47323.8, "pClaim": -5945.85, "pVal": -29485.8, "elems": null}], "totC": {"claim": 3980123.25, "val": 3906243.24}, "totP": {"claim": 574284.73, "val": 645657.62}}, {"pc": 7, "rows": [{"bill": 1, "cClaim": 1765026.61, "cVal": 1816350.57, "pClaim": 87980.36, "pVal": 125112.52, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 1442013.0, "cVal": 1441013.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 323013.61, "cVal": 375337.57, "pClaim": 87980.36, "pVal": 125112.52}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 735686.66, "cVal": 719354.57, "pClaim": -11997.0, "pVal": 932.06, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 156820.94, "cVal": 156820.94, "pClaim": 0.0, "pVal": 0.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 241893.72, "cVal": 225561.63, "pClaim": -11997.0, "pVal": 932.06}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 336972.0, "cVal": 336972.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 2334700.37, "cVal": 2325443.92, "pClaim": 854811.18, "pVal": 876185.04, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 2138581.23, "cVal": 2132529.43, "pClaim": 856203.26, "pVal": 876185.04}, {"name": "External Works", "contract": 368601.8, "cClaim": 196119.14, "cVal": 192914.49, "pClaim": -1392.08, "pVal": 0.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 45046.1, "cVal": 0.0, "pClaim": 45046.1, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 341243.55, "cVal": 241802.78, "pClaim": 265739.4, "pVal": 194478.98, "elems": null}], "totC": {"claim": 5221703.29, "val": 5102951.84}, "totP": {"claim": 1241580.04, "val": 1196708.6}}, {"pc": 8, "rows": [{"bill": 1, "cClaim": 1884428.53, "cVal": 1814981.69, "pClaim": 119401.92, "pVal": -1368.88, "elems": [{"name": "Initial Cost", "contract": 1475013.0, "cClaim": 1442013.0, "cVal": 1441013.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Recurring Cost", "contract": 12511252.26, "cClaim": 442415.53, "cVal": 373968.69, "pClaim": 119401.92, "pVal": -1368.88}, {"name": "Final Cost", "contract": 489000.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 2, "cClaim": 736367.21, "cVal": 720286.64, "pClaim": 680.55, "pVal": 932.07, "elems": [{"name": "Demolition Works", "contract": 156820.94, "cClaim": 156820.94, "cVal": 156820.94, "pClaim": 0.0, "pVal": 0.0}, {"name": "Temporary Works (All Provisional)", "contract": 281475.2, "cClaim": 242574.27, "cVal": 226493.7, "pClaim": 680.55, "pVal": 932.07}, {"name": "Site Clearance And Earthworks (All Provisional)", "contract": 280050.0, "cClaim": 336972.0, "cVal": 336972.0, "pClaim": 0.0, "pVal": 0.0}, {"name": "Retaining Wall (All Provisional)", "contract": 214900.0, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 3, "cClaim": 3218345.23, "cVal": 3208622.3, "pClaim": 883644.86, "pVal": 883178.38, "elems": [{"name": "Main Building", "contract": 9217581.6, "cClaim": 3022226.09, "cVal": 3015707.81, "pClaim": 883644.86, "pVal": 883178.38}, {"name": "External Works", "contract": 368601.8, "cClaim": 196119.14, "cVal": 192914.49, "pClaim": 0.0, "pVal": 0.0}]}, {"bill": 4, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 5, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 6, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 7, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 8, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 9, "cClaim": 242970.0, "cVal": 0.0, "pClaim": 242970.0, "pVal": 0.0, "elems": null}, {"bill": 10, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 11, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 12, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": 13, "cClaim": 0.0, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "VO", "cClaim": 45046.1, "cVal": 0.0, "pClaim": 0.0, "pVal": 0.0, "elems": null}, {"bill": "MOS", "cClaim": 202091.63, "cVal": 202091.63, "pClaim": -139151.92, "pVal": -39711.15, "elems": null}], "totC": {"claim": 6329248.7, "val": 5945982.26}, "totP": {"claim": 1107545.41, "val": 843030.42}}]};
+  var state = {pc: BC.pcs.length, basis: "cum", hideNil: true, open: {}};
+
+  function money(v) {
+    if (v === null || v === undefined) return null;
+    return v.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  }
+  function varCell(v) {
+    if (v === null || v === undefined) return '<td class="bc-na">n/s</td>';
+    if (Math.abs(v) < 0.005) return '<td class="bc-var-nil">&ndash;</td>';
+    if (v < 0) return '<td class="bc-var-neg">(' + money(Math.abs(v)) + ')</td>';
+    return '<td class="bc-var-pos">' + money(v) + '</td>';
+  }
+  function amtCell(v, cls) {
+    if (v === null || v === undefined) return '<td class="bc-na">not stated</td>';
+    if (Math.abs(v) < 0.005) return '<td class="bc-var-nil">&ndash;</td>';
+    return '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + money(v) + '</td>';
+  }
+  function meter(claim, val, contract) {
+    if (!contract || contract <= 0) return '<td class="bc-var-nil">&ndash;</td>';
+    var c = (claim === null || claim === undefined) ? 0 : claim;
+    var v = (val === null || val === undefined) ? 0 : val;
+    if (Math.abs(c) < 0.005 && Math.abs(v) < 0.005) return '<td class="bc-var-nil">&ndash;</td>';
+    var pc = Math.min(Math.max(c / contract * 100, 0), 100);
+    var pv = Math.min(Math.max(v / contract * 100, 0), 100);
+    var rawPv = v / contract * 100;
+    var over = rawPv > 100.005;
+    var tip = "Of contract sum RM " + money(contract) + " \u2014 claimed " +
+      (c / contract * 100).toFixed(2) + "%, valued " + rawPv.toFixed(2) + "%" +
+      (over ? " (OVER contract sum by RM " + money(v - contract) + ")" : "");
+    return '<td><div class="bc-meter' + (over ? " over" : "") + '" title="' + tip + '">' +
+      '<span class="bc-m-claim" style="width:' + Math.max(pc, 0.35).toFixed(2) + '%"></span>' +
+      '<span class="bc-m-val" style="width:' + Math.max(pv, pv > 0 ? 0.35 : 0).toFixed(2) + '%"></span>' +
+      '</div></td>';
+  }
+  function pctOfBill(val, contract) {
+    if (!contract || contract <= 0 || val === null || val === undefined) return '<td class="bc-var-nil">&ndash;</td>';
+    var p = val / contract * 100;
+    if (p < 0.005) return '<td class="bc-var-nil">&ndash;</td>';
+    return '<td class="bc-pct' + (p > 100.005 ? " bc-over" : "") + '">' + p.toFixed(2) + '%</td>';
+  }
+  function billName(no) {
+    for (var i = 0; i < BC.bills.length; i++) if (String(BC.bills[i].no) === String(no)) return BC.bills[i].name;
+    return "";
+  }
+  function billContract(no) {
+    for (var i = 0; i < BC.bills.length; i++) if (String(BC.bills[i].no) === String(no)) return BC.bills[i].contract;
+    return null;
+  }
+
+  function pick(row) {
+    return state.basis === "cum"
+      ? {claim: row.cClaim, val: row.cVal}
+      : {claim: row.pClaim, val: row.pVal};
+  }
+  function pickE(e) {
+    return state.basis === "cum"
+      ? {claim: e.cClaim, val: e.cVal}
+      : {claim: e.pClaim, val: e.pVal};
+  }
+
+  function render() {
+    var data = BC.pcs[state.pc - 1];
+    var body = document.getElementById("bcBody");
+    var html = "", tc = 0, tv = 0;
+
+    data.rows.forEach(function (row) {
+      var d = pick(row);
+      var c = d.claim === null ? 0 : d.claim, v = d.val === null ? 0 : d.val;
+      tc += c; tv += v;
+      var nil = Math.abs(c) < 0.005 && Math.abs(v) < 0.005;
+      if (nil && state.hideNil) return;
+
+      var hasElems = !!row.elems;
+      var isOpen = hasElems && state.open[row.bill];
+      var contract = billContract(row.bill);
+      var vr = (d.claim === null || d.val === null) ? null : Math.round((v - c) * 100) / 100;
+
+      html += '<tr class="bc-bill' + (nil ? " nil" : "") + (row.bill === "MOS" ? " bc-mos" : "") +
+        (hasElems ? " clickable" : "") + (isOpen ? " open" : "") + '"' +
+        (hasElems ? ' data-bill="' + row.bill + '"' : "") + '>' +
+        '<td>' + (hasElems ? '<span class="bc-caret">' + (isOpen ? "\u25BE" : "\u25B8") + '</span>' : "") +
+        (row.bill === "MOS" ? "MOS" : row.bill) + '</td>' +
+        '<td class="bc-desc">' + billName(row.bill) + '</td>' +
+        (contract ? '<td>' + money(contract) + '</td>' : '<td class="bc-var-nil">&ndash;</td>') +
+        amtCell(d.claim) + amtCell(d.val) + varCell(vr) + meter(d.claim, d.val, contract) + pctOfBill(v, contract) +
+        '</tr>';
+
+      if (isOpen) {
+        row.elems.forEach(function (e) {
+          var ed = pickE(e);
+          var evr = (ed.claim === null || ed.val === null) ? null
+            : Math.round((ed.val - ed.claim) * 100) / 100;
+          html += '<tr class="bc-elem"><td></td><td class="bc-desc">' + e.name + '</td>' +
+            '<td>' + money(e.contract) + '</td>' +
+            amtCell(ed.claim) + amtCell(ed.val) + varCell(evr) +
+            meter(ed.claim, ed.val, e.contract) + pctOfBill(ed.val === null ? null : ed.val, e.contract) + '</tr>';
+        });
+      }
+    });
+
+    var tvr = Math.round((tv - tc) * 100) / 100;
+    html += '<tr class="bc-total"><td colspan="3" style="text-align:left;padding-left:15px">TOTAL &mdash; ' +
+      (state.basis === "cum" ? "CUMULATIVE TO PC " + state.pc : "PC " + state.pc + " PERIOD ONLY") + '</td>' +
+      '<td>' + money(tc) + '</td><td>' + money(tv) + '</td>' + varCell(tvr) +
+      meter(tc, tv, 133800000) + '<td class="bc-pct">' + (tv / 133800000 * 100).toFixed(2) + '%</td></tr>';
+    body.innerHTML = html;
+
+    // KPIs
+    var pctCert = tc > 0 ? (tv / tc * 100) : 0;
+    document.getElementById("bcKpis").innerHTML =
+      '<div class="kpi"><div class="k-label">Claimed (' + (state.basis === "cum" ? "cumulative" : "this period") + ')</div><div class="k-value">RM ' + money(tc) + '</div></div>' +
+      '<div class="kpi"><div class="k-label">Valued by CQS</div><div class="k-value">RM ' + money(tv) + '</div></div>' +
+      '<div class="kpi ' + (tvr < 0 ? "red" : "green") + '"><div class="k-label">Variance</div><div class="k-value">' +
+        (tvr < 0 ? "(RM " + money(Math.abs(tvr)) + ")" : "RM " + money(tvr)) + '</div></div>' +
+      '<div class="kpi amber"><div class="k-label">Certified vs Claimed</div><div class="k-value">' + pctCert.toFixed(2) + '%</div></div>';
+
+    // bar chart
+    var maxv = 0;
+    data.rows.forEach(function (r) {
+      var d = pick(r);
+      maxv = Math.max(maxv, Math.abs(d.claim || 0), Math.abs(d.val || 0));
+    });
+    if (maxv <= 0) maxv = 1;
+    var ch = "";
+    data.rows.forEach(function (r) {
+      var d = pick(r);
+      var c = d.claim || 0, v = d.val || 0;
+      if (Math.abs(c) < 0.005 && Math.abs(v) < 0.005) return;
+      function bline(cls, amt, label) {
+        var w = Math.max(Math.abs(amt) / maxv * 100, 0.4);
+        if (w < 20) {
+          return '<div class="bar-wrap"><div class="bar ' + cls + '" style="width:' + w.toFixed(2) +
+            '%"></div><span class="bar-out">' + label + ' RM ' + money(amt) + '</span></div>';
+        }
+        return '<div class="bar ' + cls + '" style="width:' + w.toFixed(2) + '%">' + label + ' RM ' + money(amt) + '</div>';
+      }
+      ch += '<div class="chart-row"><div class="chart-label">' +
+        (r.bill === "MOS" ? "MOS" : "Bill " + r.bill) + '</div><div class="bar-container">' +
+        bline("bar-pc", c, "Claimed") + bline("bar-vc", v, "Valued") + '</div></div>';
+    });
+    document.getElementById("bcChart").innerHTML = ch || '<p class="bc-na">No movement in this period.</p>';
+    document.getElementById("bcChartTitle").textContent =
+      "Claimed vs Valued by Bill \u2014 " + (state.basis === "cum" ? "cumulative to PC " + state.pc : "PC " + state.pc + " period only");
+
+    // buttons
+    Array.prototype.forEach.call(document.querySelectorAll("#bcPcs .bc-pc-btn"), function (b) {
+      b.classList.toggle("active", Number(b.getAttribute("data-pc")) === state.pc);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("#bcBasis .bc-seg-btn"), function (b) {
+      b.classList.toggle("active", b.getAttribute("data-basis") === state.basis);
+    });
+  }
+
+  function renderTrend() {
+    var html = "";
+    BC.bills.forEach(function (b) {
+      var any = false, cells = "";
+      BC.pcs.forEach(function (p) {
+        var row = null;
+        p.rows.forEach(function (r) { if (String(r.bill) === String(b.no)) row = r; });
+        if (!row) { cells += "<td></td>"; return; }
+        var vr = Math.round((row.cVal - row.cClaim) * 100) / 100;
+        if (Math.abs(row.cClaim) > 0.005 || Math.abs(row.cVal) > 0.005) any = true;
+        if (Math.abs(vr) < 0.005) cells += '<td class="bc-var-nil">&ndash;</td>';
+        else if (vr < 0) cells += '<td class="bc-var-neg">(' + money(Math.abs(vr)) + ')</td>';
+        else cells += '<td class="bc-var-pos">' + money(vr) + '</td>';
+      });
+      if (!any) return;
+      html += "<tr><td>" + (b.no === "MOS" ? "MOS" : "Bill " + b.no + " \u2013 " + b.name) + "</td>" + cells + "</tr>";
+    });
+    var tcells = "";
+    BC.pcs.forEach(function (p) {
+      var vr = Math.round((p.totC.val - p.totC.claim) * 100) / 100;
+      tcells += '<td class="bc-var-neg"><b>(' + money(Math.abs(vr)) + ')</b></td>';
+    });
+    html += '<tr class="bc-total"><td>TOTAL</td>' + tcells + "</tr>";
+    document.getElementById("bcTrend").innerHTML = html;
+  }
+
+  // build PC buttons
+  var pcHtml = "";
+  BC.pcs.forEach(function (p) {
+    pcHtml += '<button type="button" class="bc-pc-btn" data-pc="' + p.pc + '">PC ' + p.pc + "</button>";
+  });
+  document.getElementById("bcPcs").innerHTML = pcHtml;
+
+  document.getElementById("bcPcs").addEventListener("click", function (e) {
+    var b = e.target.closest(".bc-pc-btn");
+    if (!b) return;
+    state.pc = Number(b.getAttribute("data-pc"));
+    render();
+  });
+  document.getElementById("bcBasis").addEventListener("click", function (e) {
+    var b = e.target.closest(".bc-seg-btn");
+    if (!b) return;
+    state.basis = b.getAttribute("data-basis");
+    render();
+  });
+  document.getElementById("bcHideNil").addEventListener("change", function (e) {
+    state.hideNil = e.target.checked;
+    render();
+  });
+  document.getElementById("bcBody").addEventListener("click", function (e) {
+    var tr = e.target.closest("tr.bc-bill.clickable");
+    if (!tr) return;
+    var b = tr.getAttribute("data-bill");
+    state.open[b] = !state.open[b];
+    render();
+  });
+
+  // tabs
+  document.querySelector(".tab-nav").addEventListener("click", function (e) {
+    var b = e.target.closest(".tab-btn");
+    if (!b) return;
+    Array.prototype.forEach.call(document.querySelectorAll(".tab-btn"), function (x) { x.classList.remove("active"); });
+    Array.prototype.forEach.call(document.querySelectorAll(".tab-panel"), function (x) { x.classList.remove("active"); });
+    b.classList.add("active");
+    document.getElementById(b.getAttribute("data-tab")).classList.add("active");
+    window.scrollTo({top: 0, behavior: "smooth"});
+  });
+
+  render();
+  renderTrend();
+})();
+</script>
+
+</body>
+</html>
